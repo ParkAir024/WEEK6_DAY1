@@ -1,7 +1,8 @@
 users = {
     '1':{
         'username': 'PReidy',
-        'email' : 'Preidy@aol.com'
+        'email' : 'Preidy@aol.com',
+        'password': "so secret"
     }
 }
 

@@ -1,6 +1,7 @@
 from flask import request
 
 from flask.views import MethodView
+from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_smorest import abort
 from . import bp
 from db import users
@@ -57,12 +58,23 @@ class UserList(MethodView):
 @bp.route('/user/follow/<followed_id>')
 class FollowUser(MethodView):
 
-  def post(followed_id):
-    follower = request.get_json()
-    user = UsersModel.query.get(follower['id'])
-    if user:
-      user.followed.append(UsersModel.query.get(followed_id))
-      user.commit()
+  @jwt_required()
+  def post(self, followed_id):
+    followed = UsersModel.query.get(followed_id)
+    follower =UsersModel.query.get(get_jwt_identity())
+    if follower and followed:
+      follower.follow(followed)
+      followed.commit()
       return {'message':'user followed'}
+    else:
+      return {'message':'invalid user'}, 400
+  @jwt_required()  
+  def put(self, followed_id):
+    followed = UsersModel.query.get(followed_id)
+    follower = UsersModel.query.get(get_jwt_identity())
+    if follower and followed:
+      follower.unfollow(followed)
+      followed.commit()
+      return {'message':'user unfollowed'}
     else:
       return {'message':'invalid user'}, 400
