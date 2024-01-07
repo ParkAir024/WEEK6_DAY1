@@ -1,5 +1,4 @@
 from flask.views import MethodView
-from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_smorest import abort
 from uuid import uuid4
 
@@ -17,16 +16,6 @@ class Games(MethodView):
             print(game.author)
             return game
         abort(400, message='Invalid Game')
-
-    @jwt_required
-    @bp.arguments(GamesSchema)
-    def put(self, post_data, post_id):
-        game = GamesSchema.query.get(post_id)
-        if game and game.user_id == get_jwt_identity():
-            game.body = post_data['body']
-            game.commit()   
-            return {'message': 'post updated'}, 201
-        return {'message': "Invalid Post Id"}, 400    
 
     @bp.arguments(GamesSchema)
     def put(self, games_data ,post_id):
@@ -46,39 +35,35 @@ class Games(MethodView):
             return {'message': "Game Created", 'game_id': str(game_id)}, 201
         abort(401, message='Invalid User')
 
-    @jwt_required
     @bp.arguments(GamesSchema)
-    def put(self, games_data, game_id):
-        game = GameModel.query.get(game_id)
-        if game and post.user_id == get_jwt_identity():
-            game.body = games_data['body']
-            game.commit()   
-            return {'message': 'post updated'}, 201
-        return {'message': "Invalid Post Id"}, 400
+    def put(self, games_data, games_id):
+        game = games.get(games_id)
+        if game:
+            if games_data['user_id'] == game['user_id']:
+                game['body'] = games_data['body']
+                return {'message': 'Game Updated'}, 202
+            abort(401, message='Unauthorized')
+        abort(400, message='Invalid Game')
 
-    @jwt_required()
-    def delete(self, game_id):
-            game =GameModel.query.get(game_id)
-            if game and post.user_id == get_jwt_identity():
-                game.delete()
-                return {"message": "Post Deleted"}, 202
-            return {'message':"Invalid Post or User"}, 400
+    def delete(self, games_id):
+        game = GameModel.query.get(games_id)
+        if game:
+            del games[games_id]
+            return {"message": "Game Deleted"}, 202
+        abort(400, message='Invalid Game')
 
 @bp.route('/')
 class GamesList(MethodView):
 
-    @bp.response(200, GamesSchema(many = True))
+    @bp.response(200, GamesSchema(many=True))
     def get(self):
-        return GameModel.query.all()
-  
-    @jwt_required()
+        return list(GameModel.query.all())
+
     @bp.arguments(GamesSchema)
-    def game(self, games_data):
-        try:
-            game = GameModel()
-            game.user_id = get_jwt_identity() 
-            game.body = games_data['body']
-            game.commit()
-            return { 'message': "Post Created" }, 201
-        except:
-            return { 'message': "Invalid User"}, 401
+    def post(self, games_data):
+        user_id = games_data['user_id']
+        if user_id in users:
+            game_id = uuid4()
+            games[game_id] = games_data
+            return {'message': "Game Created", 'game_id': str(game_id)}, 201
+        abort(401, message='Invalid User')
